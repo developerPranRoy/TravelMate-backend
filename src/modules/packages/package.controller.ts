@@ -18,7 +18,7 @@ export async function list(req: Request, res: Response, next: NextFunction) {
 
 export async function getById(req: Request, res: Response, next: NextFunction) {
   try {
-    const pkg = await getPackageById(req.params.id);
+    const pkg = await getPackageById(String(req.params.id));
     sendSuccess(res, pkg);
   } catch (err) { next(err); }
 }
@@ -45,7 +45,7 @@ export async function update(req: Request, res: Response, next: NextFunction) {
       if (!agency) throw new AppError('Agency not found', 404);
       agencyId = agency.id;
     }
-    const pkg = await updatePackage(req.params.id, agencyId, data, isAdmin);
+    const pkg = await updatePackage(String(req.params.id), agencyId, data, isAdmin);
     sendSuccess(res, pkg, 'Package updated');
   } catch (err) { next(err); }
 }
@@ -60,7 +60,7 @@ export async function remove(req: Request, res: Response, next: NextFunction) {
       if (!agency) throw new AppError('Agency not found', 404);
       agencyId = agency.id;
     }
-    await deactivatePackage(req.params.id, agencyId, isAdmin);
+    await deactivatePackage(String(req.params.id), agencyId, isAdmin);
     sendSuccess(res, null, 'Package deactivated');
   } catch (err) { next(err); }
 }

@@ -23,7 +23,8 @@ export async function getPackages(query: PackageQuery) {
     date_asc: { startDate: 'asc' },
     date_desc: { startDate: 'desc' },
   };
-  const orderBy = query.sort ? sortMap[query.sort] : { startDate: 'asc' };
+  const orderBy: Prisma.TourPackageOrderByWithRelationInput =
+    query.sort ? sortMap[query.sort] : { startDate: 'asc' };
 
   const where: Prisma.TourPackageWhereInput = {
     status: 'ACTIVE',

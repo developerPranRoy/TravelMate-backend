@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateSlug, generateBookingReference } from '../../utils/helpers';
+import { generateSlug, generateBookingReference } from '../utils/helpers';
 
 describe('Helpers', () => {
   describe('generateSlug', () => {

@@ -5,10 +5,14 @@ import { RegisterInput, LoginInput } from './auth.schema';
 import { config } from '../../config';
 
 /** Cookie options for the JWT token */
+const isProduction = config.nodeEnv === 'production';
+
 const cookieOptions = {
   httpOnly: true,
-  secure: config.nodeEnv === 'production',
-  sameSite: 'lax' as const,
+  secure: isProduction,
+  // In production the frontend and API are on different sites, so the cookie
+  // must be SameSite=None (requires Secure) to be sent cross-origin.
+  sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   path: '/',
 };
@@ -57,8 +61,8 @@ export async function logout(_req: Request, res: Response, next: NextFunction) {
   try {
     res.clearCookie('token', {
       httpOnly: true,
-      secure: config.nodeEnv === 'production',
-      sameSite: 'lax' as const,
+      secure: isProduction,
+      sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
       path: '/',
     });
 

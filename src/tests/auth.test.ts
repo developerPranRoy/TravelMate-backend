@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock Prisma so unit tests don't need a real database
-vi.mock('../../utils/prisma', () => ({
-  default: {
+const prismaMock = vi.hoisted(() => {
+  const mock: any = {
     user: {
       findUnique: vi.fn(),
       create: vi.fn(),
@@ -12,43 +12,44 @@ vi.mock('../../utils/prisma', () => ({
       create: vi.fn(),
     },
     $disconnect: vi.fn(),
-  },
+  };
+  // Run transaction callbacks against the same mock client
+  mock.$transaction = vi.fn(async (fn: (tx: any) => unknown) => fn(mock));
+  return mock;
+});
+
+vi.mock('../utils/prisma', () => ({ default: prismaMock }));
+
+const bcryptMock = vi.hoisted(() => ({
+  hash: vi.fn(),
+  compare: vi.fn(),
 }));
 
 vi.mock('bcrypt', () => ({
-  default: {
-    hash: vi.fn().mockResolvedValue('$2b$12$hashedpassword'),
-    compare: vi.fn().mockResolvedValue(true),
-  },
-  hash: vi.fn().mockResolvedValue('$2b$12$hashedpassword'),
-  compare: vi.fn().mockResolvedValue(true),
+  default: bcryptMock,
+  hash: bcryptMock.hash,
+  compare: bcryptMock.compare,
 }));
 
-import prisma from '../../utils/prisma';
-import { registerUser, loginUser } from '../../modules/auth/auth.service';
-
-const mockPrisma = prisma as typeof prisma & {
-  user: {
-    findUnique: ReturnType<typeof vi.fn>;
-    create: ReturnType<typeof vi.fn>;
-  };
-};
+import { registerUser, loginUser } from '../modules/auth/auth.service';
 
 describe('Auth Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    bcryptMock.hash.mockResolvedValue('$2b$12$hashedpassword');
+    bcryptMock.compare.mockResolvedValue(true);
   });
 
   it('should reject duplicate email on register', async () => {
-    mockPrisma.user.findUnique.mockResolvedValue({ id: '1', email: 'test@example.com' });
+    prismaMock.user.findUnique.mockResolvedValue({ id: '1', email: 'test@example.com' });
     await expect(
       registerUser({ name: 'Test', email: 'test@example.com', password: 'pass123', role: 'CUSTOMER' })
-    ).rejects.toThrow('Email already in use');
+    ).rejects.toThrow('A user with this email already exists');
   });
 
   it('should register a new user successfully', async () => {
-    mockPrisma.user.findUnique.mockResolvedValue(null);
-    mockPrisma.user.create.mockResolvedValue({
+    prismaMock.user.findUnique.mockResolvedValue(null);
+    prismaMock.user.create.mockResolvedValue({
       id: 'uuid-1', name: 'Test', email: 'newuser@example.com',
       role: 'CUSTOMER', createdAt: new Date(), agency: null,
     });
@@ -62,19 +63,18 @@ describe('Auth Service', () => {
   });
 
   it('should reject login with invalid email', async () => {
-    mockPrisma.user.findUnique.mockResolvedValue(null);
+    prismaMock.user.findUnique.mockResolvedValue(null);
     await expect(
       loginUser({ email: 'nobody@example.com', password: 'pass123' })
     ).rejects.toThrow('Invalid email or password');
   });
 
   it('should reject login with wrong password', async () => {
-    mockPrisma.user.findUnique.mockResolvedValue({
+    prismaMock.user.findUnique.mockResolvedValue({
       id: '1', email: 'test@example.com', passwordHash: '$2b$12$hash', role: 'CUSTOMER',
-      name: 'Test', createdAt: new Date(), updatedAt: new Date(),
+      name: 'Test', createdAt: new Date(), updatedAt: new Date(), agency: null,
     });
-    const bcrypt = await import('bcrypt');
-    vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
+    bcryptMock.compare.mockResolvedValue(false);
     await expect(
       loginUser({ email: 'test@example.com', password: 'wrongpass' })
     ).rejects.toThrow('Invalid email or password');

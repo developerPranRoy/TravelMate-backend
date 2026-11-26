@@ -29,7 +29,7 @@ export async function getMyBookings(req: Request, res: Response, next: NextFunct
 export async function getById(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.user) throw new AppError('Unauthenticated', 401);
-    const booking = await getBookingById(req.params.id, req.user.id, req.user.role);
+    const booking = await getBookingById(String(req.params.id), req.user.id, req.user.role);
     sendSuccess(res, booking);
   } catch (err) { next(err); }
 }
@@ -37,7 +37,7 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
 export async function cancel(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.user) throw new AppError('Unauthenticated', 401);
-    const booking = await cancelBooking(req.params.id, req.user.id);
+    const booking = await cancelBooking(String(req.params.id), req.user.id);
     sendSuccess(res, booking, 'Booking cancelled');
   } catch (err) { next(err); }
 }
@@ -59,7 +59,7 @@ export async function updateStatus(req: Request, res: Response, next: NextFuncti
     const agency = await prisma.agency.findUnique({ where: { userId: req.user.id } });
     if (!agency) throw new AppError('Agency not found', 404);
     const data = updateBookingStatusSchema.parse(req.body);
-    const booking = await updateBookingStatus(req.params.id, agency.id, data);
+    const booking = await updateBookingStatus(String(req.params.id), agency.id, data);
     sendSuccess(res, booking, 'Booking status updated');
   } catch (err) { next(err); }
 }

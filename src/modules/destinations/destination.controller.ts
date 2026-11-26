@@ -15,7 +15,7 @@ export async function list(req: Request, res: Response, next: NextFunction) {
 
 export async function getById(req: Request, res: Response, next: NextFunction) {
   try {
-    const destination = await destinationService.getDestinationById(req.params.id);
+    const destination = await destinationService.getDestinationById(String(req.params.id));
     sendSuccess(res, destination, 'Destination retrieved');
   } catch (err) {
     next(err);
@@ -35,7 +35,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     const data = req.body as UpdateDestinationInput;
-    const destination = await destinationService.updateDestination(req.params.id, data);
+    const destination = await destinationService.updateDestination(String(req.params.id), data);
     sendSuccess(res, destination, 'Destination updated');
   } catch (err) {
     next(err);
@@ -44,7 +44,7 @@ export async function update(req: Request, res: Response, next: NextFunction) {
 
 export async function remove(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = await destinationService.deleteDestination(req.params.id);
+    const result = await destinationService.deleteDestination(String(req.params.id));
     sendSuccess(res, result, result.message);
   } catch (err) {
     next(err);

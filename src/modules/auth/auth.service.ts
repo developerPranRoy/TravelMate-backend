@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import prisma from '../../utils/prisma';
 import { config } from '../../config';
 import { AppError } from '../../middleware/errorHandler';
@@ -142,6 +142,6 @@ function generateToken(userId: string): string {
   return jwt.sign(
     { userId },
     config.jwt.secret,
-    { expiresIn: config.jwt.expiresIn as string }
+    { expiresIn: config.jwt.expiresIn as SignOptions['expiresIn'] }
   );
 }

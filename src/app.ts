@@ -15,10 +15,24 @@ import adminRoutes from './modules/admin/admin.routes';
 
 const app = express();
 
+// Render (and other proxies) terminate TLS in front of the app.
+app.set('trust proxy', 1);
+
 // Security & parsing middleware
 app.use(helmet());
+
+// CLIENT_ORIGIN may contain a comma-separated list of allowed origins.
+const allowedOrigins = config.clientOrigin
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: config.clientOrigin,
+  origin: (origin, callback) => {
+    // Allow same-origin/non-browser requests (curl, health checks) with no Origin header.
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(null, false);
+  },
   credentials: true,
 }));
 app.use(cookieParser());

@@ -55,6 +55,24 @@ The API listens on `http://localhost:5000` and exposes a health check at `GET /a
 | Agency | agency@travelmate.com | agency123 |
 | Customer | customer@travelmate.com | customer123 |
 
+## Deploying to Render
+
+The production Docker stage (`--target production`, the default) builds TypeScript, applies migrations, seeds demo data (idempotent upserts), then runs the compiled server on `$PORT`.
+
+1. Create a **PostgreSQL** instance and a **Web Service** from this repo (Docker runtime).
+2. Set these environment variables on the web service:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Render Postgres internal connection string |
+| `JWT_ACCESS_SECRET` | Long random string |
+| `JWT_ACCESS_EXPIRES_IN` | e.g. `7d` |
+| `CLIENT_ORIGIN` | Frontend origin(s), comma-separated, e.g. `https://your-frontend.onrender.com` |
+
+3. Deploy. Startup runs `prisma migrate deploy` and the seed script before the API starts serving.
+
+In production the auth cookie is `SameSite=None; Secure` so the browser sends it from a different site (frontend and API are separate Render subdomains). `CLIENT_ORIGIN` must list the exact frontend origin, otherwise CORS blocks the browser.
+
 ## API
 
 Base path: `/api`

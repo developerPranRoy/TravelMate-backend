@@ -36,7 +36,7 @@ export async function users(req: Request, res: Response, next: NextFunction) {
  */
 export async function updateAgencyStatus(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const { status } = req.body as UpdateAgencyStatusInput;
     const agency = await adminService.updateAgencyStatus(id, status);
     sendSuccess(res, agency, `Agency ${status.toLowerCase()} successfully`);
