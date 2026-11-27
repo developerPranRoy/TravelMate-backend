@@ -2,20 +2,24 @@ import { Request, Response, NextFunction } from 'express';
 import { sendSuccess, sendCreated } from '../../utils/response';
 import { registerUser, loginUser, getCurrentUser } from './auth.service';
 import { RegisterInput, LoginInput } from './auth.schema';
-import { config } from '../../config';
 
-/** Cookie options for the JWT token */
-const isProduction = config.nodeEnv === 'production';
-
-const cookieOptions = {
-  httpOnly: true,
-  secure: isProduction,
-  // In production the frontend and API are on different sites, so the cookie
-  // must be SameSite=None (requires Secure) to be sent cross-origin.
-  sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  path: '/',
-};
+/**
+ * Cookie options for the JWT token.
+ *
+ * `secure` is derived from the actual request rather than NODE_ENV: behind a
+ * proxy (Render) `req.secure` reflects X-Forwarded-Proto. Cross-site cookies
+ * require SameSite=None + Secure, which is exactly what we want over HTTPS.
+ */
+function cookieOptions(req: Request, withMaxAge = true) {
+  const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+  return {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: (isSecure ? 'none' : 'lax') as 'none' | 'lax',
+    ...(withMaxAge ? { maxAge: 7 * 24 * 60 * 60 * 1000 } : {}), // 7 days
+    path: '/',
+  };
+}
 
 /**
  * POST /api/auth/register
@@ -27,7 +31,7 @@ export async function register(req: Request, res: Response, next: NextFunction) 
     const data = req.body as RegisterInput;
     const { user, token } = await registerUser(data);
 
-    res.cookie('token', token, cookieOptions);
+    res.cookie('token', token, cookieOptions(req));
 
     return sendCreated(res, { user, token }, 'Registration successful');
   } catch (err) {
@@ -45,7 +49,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     const data = req.body as LoginInput;
     const { user, token } = await loginUser(data);
 
-    res.cookie('token', token, cookieOptions);
+    res.cookie('token', token, cookieOptions(req));
 
     return sendSuccess(res, { user, token }, 'Login successful');
   } catch (err) {
@@ -57,14 +61,9 @@ export async function login(req: Request, res: Response, next: NextFunction) {
  * POST /api/auth/logout
  * Clears the authentication cookie.
  */
-export async function logout(_req: Request, res: Response, next: NextFunction) {
+export async function logout(req: Request, res: Response, next: NextFunction) {
   try {
-    res.clearCookie('token', {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
-      path: '/',
-    });
+    res.clearCookie('token', cookieOptions(req, false));
 
     return sendSuccess(res, null, 'Logout successful');
   } catch (err) {
