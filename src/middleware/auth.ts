@@ -22,22 +22,13 @@ declare global {
 
 export async function authenticate(req: Request, _res: Response, next: NextFunction) {
   try {
-    const token =
-      req.cookies?.token ||
-      (req.headers.authorization?.startsWith('Bearer ')
-        ? req.headers.authorization.slice(7)
-        : null);
+    const token = getRequestToken(req);
 
     if (!token) {
       throw new AppError('Authentication required', 401);
     }
 
-    const decoded = jwt.verify(token, config.jwt.secret) as { userId: string };
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { id: true, email: true, role: true, name: true },
-    });
+    const user = await findUserFromToken(token);
 
     if (!user) {
       throw new AppError('User not found', 401);
@@ -51,4 +42,39 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     }
     next(new AppError('Invalid or expired token', 401));
   }
+}
+
+/**
+ * Same as `authenticate`, but never rejects. Used on public routes that behave
+ * differently for the owner of a resource (e.g. an agency previewing its own
+ * deactivated package). Invalid/absent tokens simply leave `req.user` unset.
+ */
+export async function optionalAuthenticate(req: Request, _res: Response, next: NextFunction) {
+  try {
+    const token = getRequestToken(req);
+    if (token) {
+      const user = await findUserFromToken(token);
+      if (user) req.user = user;
+    }
+  } catch {
+    // Ignore bad tokens on public routes.
+  }
+  next();
+}
+
+function getRequestToken(req: Request): string | null {
+  return (
+    req.cookies?.token ||
+    (req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.slice(7)
+      : null)
+  );
+}
+
+async function findUserFromToken(token: string): Promise<AuthUser | null> {
+  const decoded = jwt.verify(token, config.jwt.secret) as { userId: string };
+  return prisma.user.findUnique({
+    where: { id: decoded.userId },
+    select: { id: true, email: true, role: true, name: true },
+  });
 }

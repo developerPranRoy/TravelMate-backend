@@ -3,9 +3,10 @@ import { AppError } from '../../middleware/errorHandler';
 import { generateSlug } from '../../utils/helpers';
 import { getPaginationParams } from '../../utils/pagination';
 import { CreatePackageInput, UpdatePackageInput, PackageQuery } from './package.schema';
+import type { AuthUser } from '../../middleware/auth';
 import { Prisma } from '@prisma/client';
 
-const packageSelect = {
+export const packageSelect = {
   id: true, title: true, slug: true, description: true,
   price: true, durationDays: true, availableSeats: true,
   startDate: true, endDate: true, imageUrl: true, status: true,
@@ -48,10 +49,29 @@ export async function getPackages(query: PackageQuery) {
   return { packages, total, page, limit };
 }
 
-export async function getPackageById(id: string) {
+export async function getPackageById(id: string, viewer?: AuthUser) {
   const pkg = await prisma.tourPackage.findUnique({ where: { id }, select: packageSelect });
-  if (!pkg || pkg.status === 'INACTIVE') throw new AppError('Package not found', 404);
+  if (!pkg) throw new AppError('Package not found', 404);
+
+  // Only ACTIVE packages are public. The owning agency (and admins) may still
+  // open their own draft/inactive package to preview it.
+  if (pkg.status !== 'ACTIVE' && !(await canManageAgencyPackage(pkg.agency.id, viewer))) {
+    throw new AppError('Package not found', 404);
+  }
+
   return pkg;
+}
+
+async function canManageAgencyPackage(agencyId: string, viewer?: AuthUser) {
+  if (!viewer) return false;
+  if (viewer.role === 'ADMIN') return true;
+  if (viewer.role !== 'AGENCY') return false;
+
+  const agency = await prisma.agency.findUnique({
+    where: { userId: viewer.id },
+    select: { id: true },
+  });
+  return agency?.id === agencyId;
 }
 
 export async function createPackage(agencyId: string, data: CreatePackageInput) {

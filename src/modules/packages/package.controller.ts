@@ -18,7 +18,7 @@ export async function list(req: Request, res: Response, next: NextFunction) {
 
 export async function getById(req: Request, res: Response, next: NextFunction) {
   try {
-    const pkg = await getPackageById(String(req.params.id));
+    const pkg = await getPackageById(String(req.params.id), req.user);
     sendSuccess(res, pkg);
   } catch (err) { next(err); }
 }

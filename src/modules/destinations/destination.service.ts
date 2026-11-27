@@ -2,6 +2,7 @@ import prisma from '../../utils/prisma';
 import { AppError } from '../../middleware/errorHandler';
 import { generateSlug } from '../../utils/helpers';
 import { getPaginationParams } from '../../utils/pagination';
+import { packageSelect } from '../packages/package.service';
 import type { CreateDestinationInput, UpdateDestinationInput, DestinationQuery } from './destination.schema';
 
 export async function getDestinations(query: DestinationQuery) {
@@ -39,6 +40,11 @@ export async function getDestinationById(id: string) {
             where: { status: 'ACTIVE' },
           },
         },
+      },
+      packages: {
+        where: { status: 'ACTIVE' },
+        orderBy: { startDate: 'asc' },
+        select: packageSelect,
       },
     },
   });
